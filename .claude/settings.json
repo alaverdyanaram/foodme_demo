@@ -1,0 +1,36 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/no-fixed-waits.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Checking test edit for fixed waits"
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/no-fixed-test-data.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Checking test edit for hard-coded account emails"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/require-assertions.mjs\"",
+            "timeout": 15,
+            "statusMessage": "Checking every test has an assertion"
+          }
+        ]
+      }
+    ]
+  }
+}
