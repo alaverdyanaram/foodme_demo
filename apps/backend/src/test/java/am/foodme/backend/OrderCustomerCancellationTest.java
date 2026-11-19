@@ -189,7 +189,8 @@ class OrderCustomerCancellationTest {
         cancel(token, number).andExpect(status().isOk());
 
         cancel(token, number)
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("This order is already cancelled"));
     }
 
     // ---- AC3: shown as Cancelled in My Orders and the admin panel -------------

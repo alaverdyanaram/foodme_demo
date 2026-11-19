@@ -51,7 +51,7 @@ export default function Tracking() {
   const queryClient = useQueryClient();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["order", number],
     queryFn: () => foodmeApi.getOrderByNumber(number as string),
     enabled: !!number,
@@ -119,7 +119,9 @@ export default function Tracking() {
   };
   const active = stepIndex(data.status);
   const stopped = STOPPED_STATUSES.has(data.status);
-  const canCancel = data.status === "NEW" && ownsOrder;
+  // After a refused cancel, hide the button until the refetch shows the real status,
+  // so a stale "Cancel order" never sits next to the error message.
+  const canCancel = data.status === "NEW" && ownsOrder && !(cancelMutation.isError && isFetching);
 
   return (
     <div className="tp_wrap mx-auto max-w-7xl px-4 py-10 md:px-8 md:py-14">
