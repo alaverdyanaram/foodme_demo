@@ -1,0 +1,30 @@
+# Qodana static analysis config, used by the `static-analysis` job in .github/workflows/ci.yml.
+# Docs: https://www.jetbrains.com/help/qodana/qodana-yaml.html
+version: "1.0"
+
+# Free community linter for the Spring Boot backend (Java/Gradle).
+# For the TypeScript/JS frontends switch to `jetbrains/qodana-js:2025.2`
+# (needs a Qodana Cloud Ultimate licence/trial on the QODANA_TOKEN project).
+linter: jetbrains/qodana-jvm-community:2025.2
+
+profile:
+  name: qodana.recommended
+
+projectJDK: "17"
+
+# Analyse the backend only; the frontends, generated output and the course's
+# helper folders aren't Java.
+exclude:
+  - name: All
+    paths:
+      - apps/web
+      - apps/admin
+      - infra
+      - .claude
+      - .agents
+      - .regression
+      - apps/backend/build
+
+# In PR mode only problems introduced by the PR count, so the job fails on
+# any new problem. Pre-existing (incl. planted FM-BUG) issues don't block.
+failThreshold: 0

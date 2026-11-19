@@ -53,9 +53,34 @@ dependencies {
     testRuntimeOnly 'com.h2database:h2'
 }
 
-tasks.named('test') {
+tasks.withType(Test).configureEach {
     useJUnitPlatform()
     testLogging {
         events 'passed', 'failed', 'skipped'
+    }
+}
+
+// `test` still runs everything. CI splits the suite in two by class name:
+// integration tests boot Spring (MockMvc / @DataJpaTest on H2), unit tests don't.
+def integrationTestPatterns = ['*ControllerTest', '*RepositoryTest', '*IntegrationTest', '*IT']
+
+tasks.register('unitTest', Test) {
+    description = 'Runs unit tests (no Spring context, no database).'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    filter {
+        integrationTestPatterns.each { excludeTestsMatching it }
+    }
+}
+
+tasks.register('integrationTest', Test) {
+    description = 'Runs integration tests (Spring context, MockMvc, H2).'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    shouldRunAfter 'unitTest'
+    filter {
+        integrationTestPatterns.each { includeTestsMatching it }
     }
 }
