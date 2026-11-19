@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "jira": {
+      "command": "uvx",
+      "args": ["--python", "3.12", "mcp-atlassian"],
+      "env": {
+        "JIRA_URL": "https://ayasus.atlassian.net",
+        "JIRA_USERNAME": "${JIRA_USERNAME}",
+        "JIRA_API_TOKEN": "${JIRA_API_TOKEN}"
+      }
+    },
+    "qase": {
+      "command": "npx",
+      "args": ["-y", "@qase/mcp-server"],
+      "env": {
+        "QASE_API_TOKEN": "${QASE_API_TOKEN}"
+      }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
+    }
+  }
+}
