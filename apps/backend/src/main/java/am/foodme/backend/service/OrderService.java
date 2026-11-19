@@ -179,6 +179,9 @@ public class OrderService {
                 .filter(o -> o.getCustomer() != null && email.equalsIgnoreCase(o.getCustomer().getEmail()))
                 // Someone else's order is reported as missing, so order numbers can't be probed.
                 .orElseThrow(() -> new NotFoundException("Order " + number + " not found"));
+        if ("CANCELLED".equals(order.getStatus())) {
+            throw new BadRequestException("This order is already cancelled");
+        }
         if (!"NEW".equals(order.getStatus())) {
             throw new BadRequestException("Only orders the kitchen hasn't accepted yet can be cancelled");
         }
