@@ -1,5 +1,6 @@
 import { useParams, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChefHat, Package, Truck, X } from "lucide-react";
 import { foodmeApi } from "@/api/foodme";
 import { Button } from "@/components/ui/button";
@@ -29,22 +30,54 @@ const STATUS_COPY: Record<string, { title: string; detail: string }> = {
     title: "Order declined",
     detail: "This order couldn’t be fulfilled. Contact support if you need help.",
   },
+  CANCELLED: {
+    title: "Order cancelled",
+    detail: "You cancelled this order before the kitchen accepted it. Nothing will be prepared.",
+  },
 };
 
+/** Statuses that end the order without delivery; the progress steps are hidden for them. */
+const STOPPED_STATUSES = new Set(["REJECTED", "CANCELLED"]);
+
 function stepIndex(status: string): number {
-  if (status === "REJECTED") return -1;
+  if (STOPPED_STATUSES.has(status)) return -1;
   const i = STEPS.findIndex((s) => s.key === status);
   return i >= 0 ? i : 0;
 }
 
 export default function Tracking() {
   const { number } = useParams<{ number: string }>();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, customer } = useAuth();
+  const queryClient = useQueryClient();
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["order", number],
     queryFn: () => foodmeApi.getOrderByNumber(number as string),
     enabled: !!number,
+  });
+
+  // Tracking pages are public by order number, so only offer Cancel when the
+  // order is in the signed-in customer's own history (the backend checks too).
+  const { data: myOrders } = useQuery({
+    queryKey: ["my-orders", customer?.id],
+    queryFn: () => foodmeApi.getMyOrders(),
+    enabled: isAuthenticated,
+  });
+  const ownsOrder = !!myOrders?.list.some((o) => o.number === number);
+
+  const cancelMutation = useMutation({
+    mutationFn: () => foodmeApi.cancelMyOrder(number as string),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["order", number], updated);
+      void queryClient.invalidateQueries({ queryKey: ["my-orders"] });
+      setConfirmingCancel(false);
+    },
+    onError: () => {
+      // Most likely the kitchen accepted it meanwhile; show the fresh status.
+      setConfirmingCancel(false);
+      void refetch();
+    },
   });
 
   if (isLoading) {
@@ -85,7 +118,8 @@ export default function Tracking() {
     detail: "Current status for your order.",
   };
   const active = stepIndex(data.status);
-  const rejected = data.status === "REJECTED";
+  const stopped = STOPPED_STATUSES.has(data.status);
+  const canCancel = data.status === "NEW" && ownsOrder;
 
   return (
     <div className="tp_wrap mx-auto max-w-7xl px-4 py-10 md:px-8 md:py-14">
@@ -104,9 +138,16 @@ export default function Tracking() {
 
       <div className="bezel-outer shadow-diffuse mt-8 animate-fade-up [animation-delay:60ms]">
         <div className="bezel-inner p-5 md:p-6">
-          {rejected ? (
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600 ring-1 ring-red-100">
+          {stopped ? (
+            <div className="flex items-start gap-3" data-testid="order-stopped">
+              <div
+                className={[
+                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-full ring-1",
+                  data.status === "CANCELLED"
+                    ? "bg-zinc-100 text-zinc-500 ring-zinc-200"
+                    : "bg-red-50 text-red-600 ring-red-100",
+                ].join(" ")}
+              >
                 <X size={18} strokeWidth={2} />
               </div>
               <div>
@@ -168,6 +209,44 @@ export default function Tracking() {
                   );
                 })}
               </ol>
+
+              {canCancel && (
+                <div className="mt-6 border-t border-zinc-100 pt-5">
+                  {confirmingCancel ? (
+                    <div role="group" aria-label="Confirm cancellation" className="flex flex-wrap items-center gap-2">
+                      <p className="mr-auto text-sm text-zinc-600">Cancel this order? This can’t be undone.</p>
+                      <Button
+                        variant="outline"
+                        className="rounded-full"
+                        disabled={cancelMutation.isPending}
+                        onClick={() => setConfirmingCancel(false)}
+                      >
+                        Keep order
+                      </Button>
+                      <Button
+                        className="rounded-full bg-red-600 hover:bg-red-700"
+                        disabled={cancelMutation.isPending}
+                        onClick={() => cancelMutation.mutate()}
+                      >
+                        {cancelMutation.isPending ? "Cancelling…" : "Yes, cancel order"}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      className="rounded-full"
+                      onClick={() => setConfirmingCancel(true)}
+                    >
+                      Cancel order
+                    </Button>
+                  )}
+                </div>
+              )}
+              {cancelMutation.isError && (
+                <p role="alert" className="mt-3 text-sm text-red-700">
+                  {cancelMutation.error.message}
+                </p>
+              )}
             </>
           )}
         </div>

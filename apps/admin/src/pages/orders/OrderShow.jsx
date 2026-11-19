@@ -164,6 +164,15 @@ const OrderDetails = () => {
                     <Typography variant="h6">{record.totalPrice} AMD</Typography>
                 </Stack>
 
+                {record.status === OrderStatus.CANCELLED && (
+                    <>
+                        <Divider sx={{ my: 2 }} />
+                        <Typography variant="body2" color="text.secondary" data-testid="order-cancelled-note">
+                            Cancelled by the customer before the kitchen accepted it. This status is final.
+                        </Typography>
+                    </>
+                )}
+
                 {availableTransitions.length > 0 && (
                     <>
                         <Divider sx={{ my: 2 }} />
