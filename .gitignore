@@ -34,7 +34,6 @@ blob-report/
 .env
 .env.*
 !.env.example
-.mcp.json
 !.mcp.json.example
 
 # --- IDE ------------------------------------------------------------------
@@ -60,3 +59,8 @@ docs/planted-defects.md
 
 # Machine-local compose override (host-port remap for this workstation)
 infra/docker-compose.local.yml
+
+# Regression run output (regression skill)
+.regression/
+KAN-4-cart-decrement-fix.patch
+introduce-bug-FM-BUG-07.patch

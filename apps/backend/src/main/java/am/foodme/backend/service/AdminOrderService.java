@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 @Service
 public class AdminOrderService {
 
+    // DELIVERED, REJECTED and CANCELLED (set only by the customer, KAN-5) are final: no entry, no way out.
     private static final Map<String, Set<String>> ALLOWED_TRANSITIONS = Map.of(
             "NEW", Set.of("ACCEPTED", "REJECTED"),
             "ACCEPTED", Set.of("DELIVERED", "REJECTED")

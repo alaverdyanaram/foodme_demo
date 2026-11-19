@@ -46,4 +46,8 @@ export const foodmeApi = {
 
   getMyOrders: (page = 0, size = 20) =>
     apiClient.get<OrderListResponseDto>(`/api/customer/orders?page=${page}&size=${size}`),
+
+  /** KAN-5: allowed only for the customer's own order while it is still NEW ("Received"). */
+  cancelMyOrder: (number: string) =>
+    apiClient.post<FullOrderDto>(`/api/customer/orders/${encodeURIComponent(number)}/cancel`, {}),
 };

@@ -168,6 +168,26 @@ public class OrderService {
         return OrderDto.mapEntityToDto(order);
     }
 
+    /**
+     * KAN-5: a customer may cancel their own order while it is still NEW
+     * ("Received"). CANCELLED is final; AdminOrderService has no transition out of it.
+     */
+    @Transactional
+    public OrderDto cancelForCustomer(String number, String customerEmail) {
+        String email = customerEmail == null ? "" : customerEmail.trim().toLowerCase();
+        Order order = orderRepository.findByNumber(number)
+                .filter(o -> o.getCustomer() != null && email.equalsIgnoreCase(o.getCustomer().getEmail()))
+                // Someone else's order is reported as missing, so order numbers can't be probed.
+                .orElseThrow(() -> new NotFoundException("Order " + number + " not found"));
+        if (!"NEW".equals(order.getStatus())) {
+            throw new BadRequestException("Only orders the kitchen hasn't accepted yet can be cancelled");
+        }
+        order.setStatus("CANCELLED");
+        Order saved = orderRepository.save(order);
+        meterRegistry.counter("foodme.orders.cancelled").increment();
+        return OrderDto.mapEntityToDto(saved);
+    }
+
     @Transactional(readOnly = true)
     public OrderListResponseDto listForCustomer(String customerEmail, int page, int size) {
         Customer customer = customerRepository.findByEmail(customerEmail == null ? "" : customerEmail.trim().toLowerCase())
