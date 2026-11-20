@@ -3,6 +3,8 @@ package am.foodme.backend.controller.api;
 import am.foodme.backend.dto.CustomerProfileDto;
 import am.foodme.backend.dto.OrderDto;
 import am.foodme.backend.dto.OrderListResponseDto;
+import am.foodme.backend.dto.OrderReviewRequestDto;
+import org.springframework.web.bind.annotation.RequestBody;
 import am.foodme.backend.service.CustomerAuthService;
 import am.foodme.backend.service.OrderService;
 import am.foodme.backend.utils.ControllerUtil;
@@ -42,5 +44,12 @@ public class CustomerController {
     @PostMapping("/orders/{number}/cancel")
     public OrderDto cancelOrder(Authentication authentication, @PathVariable String number) {
         return orderService.cancelForCustomer(number, authentication.getName());
+    }
+
+    /** Order ratings: rate one of the signed-in customer's delivered orders (1-5 stars + optional comment). */
+    @PostMapping("/orders/{number}/review")
+    public OrderDto reviewOrder(Authentication authentication, @PathVariable String number,
+                                @RequestBody OrderReviewRequestDto request) {
+        return orderService.reviewForCustomer(number, authentication.getName(), request);
     }
 }

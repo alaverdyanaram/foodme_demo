@@ -14,6 +14,7 @@ import type {
   OrderCreateResponseDto,
   OrderDto,
   OrderListResponseDto,
+  OrderReviewRequest,
 } from "@/types";
 
 export const foodmeApi = {
@@ -50,4 +51,8 @@ export const foodmeApi = {
   /** KAN-5: allowed only for the customer's own order while it is still NEW ("Received"). */
   cancelMyOrder: (number: string) =>
     apiClient.post<FullOrderDto>(`/api/customer/orders/${encodeURIComponent(number)}/cancel`, {}),
+
+  /** Order ratings: only the customer's own DELIVERED order, once. */
+  reviewMyOrder: (number: string, payload: OrderReviewRequest) =>
+    apiClient.post<FullOrderDto>(`/api/customer/orders/${encodeURIComponent(number)}/review`, payload),
 };

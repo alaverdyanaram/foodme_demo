@@ -7,7 +7,7 @@ import {
     SelectInput,
     useRecordContext,
 } from 'react-admin';
-import { Chip } from '@mui/material';
+import { Chip, Rating } from '@mui/material';
 import { OrderStatus, OrderStatusColors } from '../../constants/OrderStatus.jsx';
 
 const orderFilters = [
@@ -26,6 +26,20 @@ const OrderStatusField = () => {
     return <Chip label={record.status} color={OrderStatusColors[record.status] ?? 'default'} size="small" />;
 };
 
+// Order ratings (R23): small read-only stars for rated orders, blank otherwise.
+const OrderRatingField = () => {
+    const record = useRecordContext();
+    if (!record?.review) return null;
+    return (
+        <Rating
+            value={record.review.rating}
+            readOnly
+            size="small"
+            aria-label={`Rated ${record.review.rating} out of 5 stars`}
+        />
+    );
+};
+
 const OrderList = () => (
     <List filters={orderFilters} sort={{ field: 'createdAt', order: 'DESC' }}>
         <Datagrid rowClick="show">
@@ -34,6 +48,7 @@ const OrderList = () => (
             <TextField source="receiverName" label="Receiver" />
             <NumberField source="totalPrice" label="Total" options={{ style: 'currency', currency: 'AMD' }} />
             <OrderStatusField source="status" label="Status" />
+            <OrderRatingField source="review" label="Rating" sortable={false} />
             <DateField source="createdAt" label="Created" showTime />
         </Datagrid>
     </List>

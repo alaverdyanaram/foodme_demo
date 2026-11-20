@@ -7,6 +7,12 @@ import am.foodme.backend.dto.DeliveryPriceResponseDto;
 import am.foodme.backend.dto.OrderCreateResponseDto;
 import am.foodme.backend.dto.OrderDto;
 import am.foodme.backend.dto.OrderListResponseDto;
+import am.foodme.backend.dto.OrderReviewRequestDto;
+import am.foodme.backend.model.OrderReview;
+import am.foodme.backend.repository.OrderReviewRepository;
+import org.springframework.dao.DataIntegrityViolationException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import am.foodme.backend.exceptionHandler.BadRequestException;
 import am.foodme.backend.exceptionHandler.NotFoundException;
 import am.foodme.backend.model.Address;
@@ -36,15 +42,17 @@ public class OrderService {
     private final ChefRepository chefRepository;
     private final DishRepository dishRepository;
     private final CustomerRepository customerRepository;
+    private final OrderReviewRepository orderReviewRepository;
     private final MeterRegistry meterRegistry;
 
     public OrderService(OrderRepository orderRepository, ChefRepository chefRepository,
                          DishRepository dishRepository, CustomerRepository customerRepository,
-                         MeterRegistry meterRegistry) {
+                         OrderReviewRepository orderReviewRepository, MeterRegistry meterRegistry) {
         this.orderRepository = orderRepository;
         this.chefRepository = chefRepository;
         this.dishRepository = dishRepository;
         this.customerRepository = customerRepository;
+        this.orderReviewRepository = orderReviewRepository;
         this.meterRegistry = meterRegistry;
     }
 
@@ -189,6 +197,63 @@ public class OrderService {
         Order saved = orderRepository.save(order);
         meterRegistry.counter("foodme.orders.cancelled").increment();
         return OrderDto.mapEntityToDto(saved);
+    }
+
+    /**
+     * Order ratings: the signed-in customer rates one of their own DELIVERED orders, once,
+     * with 1-5 whole stars and an optional comment (max 1000 chars). The chef's rating then
+     * becomes the average of all their reviews, rounded to one decimal (R10, R11).
+     */
+    @Transactional
+    public OrderDto reviewForCustomer(String number, String customerEmail, OrderReviewRequestDto request) {
+        String email = customerEmail == null ? "" : customerEmail.trim().toLowerCase();
+        Order order = orderRepository.findByNumber(number)
+                .filter(o -> o.getCustomer() != null && email.equalsIgnoreCase(o.getCustomer().getEmail()))
+                // R7: someone else's order is reported as missing, so order numbers can't be probed.
+                .orElseThrow(() -> new NotFoundException("Order " + number + " not found"));
+
+        Double stars = request == null ? null : request.getRating();
+        if (stars == null || stars < 1 || stars > 5 || stars % 1 != 0) {
+            throw new BadRequestException("Rating must be a whole number of stars from 1 to 5");
+        }
+        String comment = request.getComment() == null ? null : request.getComment().trim();
+        if (comment != null && comment.isEmpty()) {
+            comment = null;
+        }
+        if (comment != null && comment.length() > 1000) {
+            throw new BadRequestException("Comment must be at most 1000 characters");
+        }
+        if (!"DELIVERED".equals(order.getStatus())) {
+            throw new BadRequestException("Only delivered orders can be reviewed.");
+        }
+        if (order.getReview() != null || orderReviewRepository.existsByOrderId(order.getId())) {
+            throw new BadRequestException("Order already reviewed.");
+        }
+
+        OrderReview review = new OrderReview();
+        review.setOrder(order);
+        review.setCustomer(order.getCustomer());
+        review.setChef(order.getChef());
+        review.setRating(stars.intValue());
+        review.setComment(comment);
+        review.setCreatedAt(LocalDateTime.now());
+        try {
+            orderReviewRepository.saveAndFlush(review);
+        } catch (DataIntegrityViolationException e) {
+            // Two concurrent submits for the same order: the unique order_id wins.
+            throw new BadRequestException("Order already reviewed.");
+        }
+        order.setReview(review);
+
+        Chef chef = order.getChef();
+        Double average = orderReviewRepository.averageRatingForChef(chef.getId());
+        if (average != null) {
+            chef.setRating(BigDecimal.valueOf(average).setScale(1, RoundingMode.HALF_UP).doubleValue());
+            chefRepository.save(chef);
+        }
+
+        meterRegistry.counter("foodme.orders.reviewed").increment();
+        return OrderDto.mapEntityToDto(order);
     }
 
     @Transactional(readOnly = true)
