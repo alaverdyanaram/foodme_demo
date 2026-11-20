@@ -185,6 +185,20 @@ export interface FullOrderDto {
   orderDishList: OrderDishDto[];
   totalPrice: number;
   createdAt: string;
+  /** The customer's rating; null/absent until the order has been rated. */
+  review?: OrderReviewDto | null;
+}
+
+/** Order ratings: 1-5 whole stars, optional comment (max 1000 chars). */
+export interface OrderReviewDto {
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+}
+
+export interface OrderReviewRequest {
+  rating: number;
+  comment?: string;
 }
 
 export interface ApiError {

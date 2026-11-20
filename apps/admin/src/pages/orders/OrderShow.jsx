@@ -19,10 +19,51 @@ import {
     DialogActions,
     TextField,
     Stack,
+    Rating,
 } from '@mui/material';
 import { OrderStatus, OrderStatusColors, OrderStatusTransitions } from '../../constants/OrderStatus.jsx';
 import { updateOrderStatus } from '../../api/order-api.js';
 import BackButton from '../../layout/BackButton.jsx';
+
+const formatReviewDate = (value) => {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+};
+
+/**
+ * Order ratings (R20-R22): stars, comment and date for delivered orders,
+ * "No review yet" when not rated, hidden for every other status.
+ * The comment is customer input, so it is rendered as plain text.
+ */
+const CustomerReview = ({ record }) => {
+    if (record.status !== OrderStatus.DELIVERED) return null;
+    const review = record.review;
+    return (
+        <Box component="section" aria-label="Customer review" data-testid="order-customer-review">
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                Customer review
+            </Typography>
+            {review ? (
+                <>
+                    <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap">
+                        <Rating value={review.rating} readOnly aria-label={`Rated ${review.rating} out of 5 stars`} />
+                        <Typography variant="body2" color="text.secondary">
+                            {formatReviewDate(review.createdAt)}
+                        </Typography>
+                    </Stack>
+                    {review.comment && (
+                        <Typography sx={{ mt: 1, whiteSpace: 'pre-line', overflowWrap: 'anywhere' }}>
+                            {review.comment}
+                        </Typography>
+                    )}
+                </>
+            ) : (
+                <Typography color="text.secondary">No review yet</Typography>
+            )}
+        </Box>
+    );
+};
 
 const OrderDetails = () => {
     const record = useRecordContext();
@@ -163,6 +204,8 @@ const OrderDetails = () => {
                     <Typography variant="h6">Total</Typography>
                     <Typography variant="h6">{record.totalPrice} AMD</Typography>
                 </Stack>
+
+                <CustomerReview record={record} />
 
                 {record.status === OrderStatus.CANCELLED && (
                     <>

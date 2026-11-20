@@ -1,11 +1,13 @@
 import { useParams, Link } from "react-router-dom";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ChefHat, Package, Truck, X } from "lucide-react";
+import { Check, ChefHat, Package, Star, Truck, X } from "lucide-react";
 import { foodmeApi } from "@/api/foodme";
 import { Button } from "@/components/ui/button";
 import { formatAmd } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
+import { RateOrderDialog } from "@/components/sections/rate-order-dialog";
+import { StarRatingDisplay } from "@/components/sections/star-rating";
 
 const STEPS = [
   { key: "NEW", label: "Received", Icon: Package },
@@ -50,6 +52,7 @@ export default function Tracking() {
   const { isAuthenticated, customer } = useAuth();
   const queryClient = useQueryClient();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const [rating, setRating] = useState(false);
 
   const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["order", number],
@@ -253,6 +256,41 @@ export default function Tracking() {
           )}
         </div>
       </div>
+
+      {/* Order ratings (R13): delivered orders show the rating, or let the owner give one. */}
+      {data.status === "DELIVERED" && (data.review || ownsOrder) && (
+        <section
+          aria-label="Your rating"
+          className="tp_rating bezel-outer shadow-diffuse mt-5 animate-fade-up [animation-delay:90ms]"
+        >
+          <div className="bezel-inner p-5 md:p-6">
+            {data.review ? (
+              <>
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="font-display text-base font-bold text-zinc-900">Your rating</p>
+                  <StarRatingDisplay rating={data.review.rating} size={16} />
+                </div>
+                {data.review.comment && (
+                  <p className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed text-zinc-600">
+                    {data.review.comment}
+                  </p>
+                )}
+              </>
+            ) : (
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="mr-auto text-sm text-zinc-600">How was your order?</p>
+                <Button variant="outline" className="rounded-full" onClick={() => setRating(true)}>
+                  <Star size={14} strokeWidth={2} aria-hidden="true" />
+                  Rate order
+                </Button>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+      {rating && (
+        <RateOrderDialog order={data} open onOpenChange={(open) => setRating(open)} />
+      )}
 
       <div className="bezel-outer shadow-diffuse mt-5 animate-fade-up [animation-delay:120ms]">
         <div className="bezel-inner overflow-hidden">
